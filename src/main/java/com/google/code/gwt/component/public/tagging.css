@@ -1,0 +1,98 @@
+.tags-input{
+
+}
+
+.tags-input-list{
+    font-family:Arial,Helvetica;
+    font-size:12px;
+    cursor: text;
+}
+
+.tags-input-list-tags{
+    zoom: 1;
+    overflow: hidden;
+    margin: 0;
+    padding: 3px 4px 0;
+    border: 1px solid #999;
+}
+
+.tags-input-list-item{
+    list-style-type: none;
+    float: left;
+    display: block;
+    padding: 0;
+    margin: 0 5px 3px 0;
+    cursor: default;
+}
+
+.tags-input-list-box{
+    position: relative;
+    line-height: 18px;
+    padding: 0 5px;
+    -moz-border-radius: 9px;
+    -webkit-border-radius: 9px;
+    border-radius: 9px;
+    border: 1px solid #CAD8F3;
+    background: #DEE7F8;
+    cursor: default;
+}
+
+
+.tags-input-list-item-hover{
+    background: #BBCEF1;
+    border: 1px solid #6D95E0;
+}
+
+.tags-input-list-item-focus{
+    border-color: #598BEC;
+    background: #598BEC;
+    color: #fff;
+}
+
+.tags-input-list-tag-focus .tags-input-list-tag-delete{
+    background-position: bottom;
+}
+
+.tags-input-list-item-deletable {
+padding-right: 15px;
+}
+
+.tags-input-list-tag-delete{
+    position: absolute;
+    right: 4px;
+    top: 6px;
+    display: block;
+    width: 7px;
+    height: 7px;
+    font-size: 1px;
+    background: url('close.gif');
+}
+
+
+.gwt-tags-input-list-tag-delete:hover {
+    border: none;
+    background-position: 7px;
+    text-decoration: none;
+}
+
+/* cely srac */
+.tags-input-list-tag-editable { 
+    border: 1px solid #fff;
+}
+
+/* input */
+
+.tags-input-list-tag-input {
+    border: 0;
+    padding: 2px 0;
+    padding-bottom: 0;
+    height: 17px;
+    font: 12px Arial,Helvetica;;
+    width: 50px
+}
+.tags-input-list-tag-input:focus { 
+    outline: 0;
+}
+
+
+
