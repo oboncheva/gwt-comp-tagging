@@ -1,4 +1,4 @@
-package com.google.code.gwt.component.client;
+package com.google.code.gwt.component.tag;
 
 import java.io.Serializable;
 
@@ -6,7 +6,8 @@ import java.io.Serializable;
 /**
  * Abstract representation of tag. Tag consists from plain string that represents
  * visible tag in component <code>tag</code> and from value that identities tag
- * in backend system. There are implementations for most use cases {@link  }
+ * in backend system. There are implementations for most use cases {@link IntTag},
+ * {@link StringTag}
  *
  * @author Palo Gressa <gressa@acemcee.com>
  */
@@ -19,9 +20,9 @@ public class Tag<T> implements Serializable{
     public Tag() {
     }
 
-    public Tag(T value, String key) {
+    public Tag(T value, String tag) {
         this.value = value;
-        this.tag = key;
+        this.tag = tag;
     }
 
     public String getTag() {

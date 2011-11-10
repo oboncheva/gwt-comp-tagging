@@ -1,6 +1,4 @@
-package com.google.code.gwt.component.client.tag;
-
-import com.google.code.gwt.component.client.Tag;
+package com.google.code.gwt.component.tag;
 
 /**
  * 

@@ -1,6 +1,4 @@
-package com.google.code.gwt.component.client.tag;
-
-import com.google.code.gwt.component.client.Tag;
+package com.google.code.gwt.component.tag;
 
 /**
  * 
@@ -12,7 +10,7 @@ public class StringTag extends Tag<String>{
     public StringTag() {
     }
     
-    public StringTag(String value, String key) {
-        super(value, key);
+    public StringTag(String value, String tag) {
+        super(value, tag);
     }        
 }
