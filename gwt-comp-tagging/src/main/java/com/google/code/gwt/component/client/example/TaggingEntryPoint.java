@@ -32,7 +32,7 @@ public class TaggingEntryPoint implements EntryPoint {
 
         InputTag<StringTag> ti2 = new InputTag<StringTag>(items);
         ti2.setWidth("400px");
-        ti2.setMode(InputTag.Mode.READ_ONLY);
+        ti2.setMode(InputTag.Mode.READ);
 
         InputTag<StringTag> ti3 = new InputTag<StringTag>(items);
         ti3.setWidth("400px");
@@ -48,7 +48,16 @@ public class TaggingEntryPoint implements EntryPoint {
 
         @Override
         public void findSuggestions(String text, List<StringTag> suggestions) {
-            if (text.startsWith("j")) {
+            if (text.startsWith("jav")) {
+                suggestions.add(new StringTag(text, "java"));
+                suggestions.add(new StringTag(text, "javascipt"));
+            } else if (text.startsWith("ja")) {
+                suggestions.add(new StringTag(text, "java"));
+                suggestions.add(new StringTag(text, "javascipt"));
+                suggestions.add(new StringTag(text, "jackson"));
+                suggestions.add(new StringTag(text, "jarvana"));
+                suggestions.add(new StringTag(text, "jabadabadoo"));                
+            } else if (text.startsWith("j")) {
                 suggestions.add(new StringTag(text, "java"));
                 suggestions.add(new StringTag(text, "javascipt"));
                 suggestions.add(new StringTag(text, "jackson"));
@@ -56,16 +65,7 @@ public class TaggingEntryPoint implements EntryPoint {
                 suggestions.add(new StringTag(text, "jabadabadoo"));
                 suggestions.add(new StringTag(text, "joseph"));
                 suggestions.add(new StringTag(text, "johnny"));
-            } else if (text.startsWith("ja")) {
-                suggestions.add(new StringTag(text, "java"));
-                suggestions.add(new StringTag(text, "javascipt"));
-                suggestions.add(new StringTag(text, "jackson"));
-                suggestions.add(new StringTag(text, "jarvana"));
-                suggestions.add(new StringTag(text, "jabadabadoo"));                
-            } else if (text.startsWith("ja")) {
-                suggestions.add(new StringTag(text, "java"));
-                suggestions.add(new StringTag(text, "javascipt"));
-            }
+            }  
         }
     }
 }

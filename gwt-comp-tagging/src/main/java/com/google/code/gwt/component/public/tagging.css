@@ -96,14 +96,13 @@
 }
 
 .tags-suggestion-wrapper{
-    position: absolute;    
+    position: absolute; 
+    z-index:999;
 }
 
 
-.tags-suggestion-list {
-    opacity: 0.9;
-    filter: alpha(opacity=90);
-    background: #eee;
+.tags-suggestion-list {    
+    background-color: #fff;
     -webkit-box-shadow: 0 3px 3px #ccc;
     -moz-box-shadow: 0 3px 3px #ccc;
     box-shadow: 0 3px 3px #ccc;
@@ -117,12 +116,12 @@
 .tags-suggestion-list-suggestion {
     margin: 0;
     padding: 5px;
-    list-style-type: none;
-    background: #eee;    
+    list-style-type: none;    
+    cursor: pointer;
 }
 
 .tags-suggestion-list-suggestion-focus {
-    background: #C6D9E4;
+    background: #C6D9E4;    
 }
 
 

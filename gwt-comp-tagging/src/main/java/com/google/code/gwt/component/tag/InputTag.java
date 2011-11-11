@@ -57,6 +57,7 @@ public class InputTag<T extends Tag> extends Widget {
     private SuggestionPresenter<T> suggestionPresenter;
     /** Caret last position used to compute whether the focus of active element should be switched to next / previous sibling */
     private int caretLastPosition = 0;
+    private boolean allowWhiteSpaceInTag = false;
     /** Mode of tag input */
     private Mode mode;
 
@@ -66,7 +67,7 @@ public class InputTag<T extends Tag> extends Widget {
         // init layout
         initLayout(tags);
         // set default mode
-        setMode(Mode.DEFAULT);
+        setMode(Mode.WRITE);
         // sed default presenter
         suggestionPresenter = new DefaultSuggestionPresenter<T>();
         // initialize suggestions
@@ -153,7 +154,7 @@ public class InputTag<T extends Tag> extends Widget {
                 }
             }
         });
-        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(),  Event.FOCUSEVENTS | Event.ONMOUSEOUT | Event.ONMOUSEOVER | eventBits);
+        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(), Event.FOCUSEVENTS | Event.ONMOUSEOUT | Event.ONMOUSEOVER | eventBits);
         return listItem;
     }
 
@@ -165,6 +166,7 @@ public class InputTag<T extends Tag> extends Widget {
     protected void appendTag(Tag tag) {
         // item
         final Element item = createTagLIElement(new EventListener() {
+
             @Override
             public void onBrowserEvent(Event event) {
 
@@ -176,10 +178,10 @@ public class InputTag<T extends Tag> extends Widget {
                     shiftFocusRight(event.getEventTarget().<com.google.gwt.dom.client.Element>cast());
                 }
             }
-        },  Event.ONKEYDOWN);
+        }, Event.ONKEYDOWN);
         item.addClassName("input-tag-list-box");
         item.addClassName("input-tag-list-item-deletable");
-        
+
         // create tag text
         SpanElement tagSpan = Document.get().createSpanElement();
         tagSpan.setInnerText(tag.getTag());
@@ -205,30 +207,9 @@ public class InputTag<T extends Tag> extends Widget {
         tags.add(new ItemTag(tag, item));
     }
 
-    protected LIElement createSuggestionElement() {
-        // create list item
-        final LIElement listItem = Document.get().createLIElement();
-        listItem.setTabIndex(0);
-        // Set event listeners
-        DOM.setEventListener(listItem.<com.google.gwt.user.client.Element>cast(), new EventListener() {
-
-            @Override
-            public void onBrowserEvent(Event event) {
-                if (event.getTypeInt() == Event.ONMOUSEOUT ) {
-                    listItem.removeClassName("tags-suggestion-list-suggestion-focus");
-                } else if (event.getTypeInt() == Event.ONMOUSEOVER ) {
-                    listItem.addClassName("tags-suggestion-list-suggestion-focus");
-                } else if (event.getTypeInt() == Event.ONCLICK || (event.getTypeInt() == Event.ONKEYDOWN && event.getKeyCode() == KeyCodes.KEY_ENTER)) {
-                }
-            }
-        });
-        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(), Event.ONMOUSEOUT | Event.ONMOUSEOVER | Event.ONCLICK | Event.ONKEYUP);
-        return listItem;
-    }
-
     private void removeTag(Element listItem) {
         // we can remove tag only when mode allows it
-        if (mode != Mode.READ_ONLY) {
+        if (mode != Mode.READ) {
 
             // remove tag from inner tag list
             ItemTag t = null;
@@ -251,28 +232,33 @@ public class InputTag<T extends Tag> extends Widget {
         }
     }
 
-    private void resetInputText() {
-        // reset input text
-        inputText.setValue("");
-        inputText.getStyle().setWidth(50, Unit.PX);
-    }
+    private void handleNewTag() {
+        String value = inputText.getValue();
+        if (value.length() > 0) {
+            // find possilbe tag in suggested tags
+            Tag tag = findInSuggestedTags(value);
 
-    
-    private void shiftFocusLeft(Element listItem) {
-        Node sib = listItem.getPreviousSibling();
-        if (sib != null) {
-            sib.<com.google.gwt.user.client.Element>cast().focus();
+            if (mode == Mode.SELECT_BOX && tag == null) {
+                return;
+            }
+
+            // if we did not found tag from oracle then create new one
+            if (tag == null) {
+
+                if (tagValidator != null && !tagValidator.isValid(value)) {
+                    return;
+                }
+                tag = new Tag(null, value);
+            }
+            appendTag(tag);
+            resetInputText();
         }
     }
 
-    private void shiftFocusRight(Element listItem) {
-        Element sib = listItem.getNextSiblingElement();
-        if (sib != null) {
-            sib.focus();
-        }
-    }
-
-    private void handleInputChange() {
+    /*----------------------------------------------------------------------------*/
+    /*---- I N P U T   T E X T  ----*/
+    /*----------------------------------------------------------------------------*/
+    private void inputTextChanged() {
 
         String text = inputText.getValue();
 
@@ -280,14 +266,15 @@ public class InputTag<T extends Tag> extends Widget {
         widthSpanTester.setInnerText(text);
         inputText.getStyle().setWidth(widthSpanTester.getOffsetWidth() + 20, Unit.PX);
 
+        System.out.println("change!");
+
         // hide and clear suggestions
         hideAndClearSuggestionList();
 
         // try suggestion oraculum for tags
         if (getSuggestionDelegate() != null) {
 
-            // clear suggestions
-            suggestedTags.clear();
+            
             // clear suggestions element
             while (suggestionList.hasChildNodes()) {
                 suggestionList.removeChild(suggestionList.getFirstChild());
@@ -298,8 +285,9 @@ public class InputTag<T extends Tag> extends Widget {
             if (suggestedTags.size() > 0) {
                 suggestionList.getStyle().setDisplay(Display.BLOCK);
                 // create suggestions list items
-                for (T tag : suggestedTags) {
-                    LIElement suggestionElement = createSuggestionElement();
+                for (int i = 0; i < suggestedTags.size(); i++) {
+                    final T tag = suggestedTags.get(i);
+                    LIElement suggestionElement = createSuggestionElement(tag);
                     getSuggestionPresenter().createSuggestion(suggestionElement, tag, text);
                     suggestionList.appendChild(suggestionElement);
                 }
@@ -307,31 +295,177 @@ public class InputTag<T extends Tag> extends Widget {
         }
     }
 
-    private void hideAndClearSuggestionList() {
-        suggestionList.getStyle().setDisplay(Display.NONE);
+    /**
+     * Initializes inputText element for inserting new tags by keyboard. There is
+     * only one inputText in time. 
+     */
+    protected void initializeInputText() {
+        inputText = (DOM.createInputText()).cast();
+        inputText.setClassName("input-tag-list-tag-input");
+        inputText.setTabIndex(0);
+        DOM.setEventListener(inputText.<com.google.gwt.user.client.Element>cast(), new EventListener() {
+
+            @Override
+            public void onBrowserEvent(Event event) {
+
+                //
+                // Proces when key is pressed. handles only confirmation keys
+                //
+                if (event.getTypeInt() == Event.ONKEYPRESS) {
+                    // enter is working only when no suggestion is selected
+                    if (event.getKeyCode() == KeyCodes.KEY_ENTER) {
+                        Node node = null;
+                        int i = 0;
+                        for ( ; i < suggestionList.getChildCount(); i++) {
+                            if (hasNodeStyleClass(suggestionList.getChild(i), "tags-suggestion-list-suggestion-focus")) {
+                                node = suggestionList.getChild(i);
+                                break;
+                            }
+                        }
+
+                        if (node != null) {                     
+                            resetInputText();
+                            appendTag(suggestedTags.get(i)); 
+                            
+                        } else {
+                            handleNewTag();
+                        }
+                        // proces new tags when spacebat is hit
+                    } else if (event.getCharCode() == 32 && !isAllowWhiteSpaceInTag()) {
+                        handleNewTag();
+                    }
+
+                    //
+                    // Handles input changed only when input is alfanumeric. Recounts input width and updates input text
+                    //                            
+                } else if (event.getTypeInt() == Event.ONKEYUP && (isAlfaNumericKey(event.getKeyCode()) || event.getKeyCode() == KeyCodes.KEY_BACKSPACE)) {
+                    inputTextChanged();
+
+                    //
+                    // Handles input focus 
+                    //                                
+                } else if (event.getTypeInt() == Event.ONFOCUS) {
+                    inputText.getParentElement().addClassName("input-tag-list-tag-focus");
+
+                    //
+                    // Handles input focus steal
+                    //                                
+                } else if (event.getTypeInt() == Event.ONBLUR) {
+                    inputText.getParentElement().removeClassName("input-tag-list-tag-focus");
+                    hideAndClearSuggestionList();
+
+                    //
+                    // Handles update of caret position (to decide whether to jump to previous tag
+                    // OR handles navigation instide of suggestion list
+                    //                                
+                } else if (event.getTypeInt() == Event.ONKEYDOWN) {
+                    if ((caretLastPosition == 1 || caretLastPosition == 0) && getCursorPos(inputText) == 0) {
+                        if (event.getKeyCode() == KeyCodes.KEY_BACKSPACE || event.getKeyCode() == KeyCodes.KEY_LEFT) {
+                            shiftFocusLeft(inputText.getParentNode().<com.google.gwt.user.client.Element>cast());
+                        }
+                        caretLastPosition = getCursorPos(inputText);
+                    }
+
+                    if (event.getKeyCode() == KeyCodes.KEY_DOWN || event.getKeyCode() == KeyCodes.KEY_UP) {
+                        // we'll try to find if there is some suggestion 
+                        if (suggestionList.getChildCount() > 0) {
+                            boolean found = false;
+                            for (int i = 0; i < suggestionList.getChildCount(); i++) {
+                                Node node = suggestionList.getChild(i);
+                                if (hasNodeStyleClass(node, "tags-suggestion-list-suggestion-focus")) {
+                                    if (event.getKeyCode() == KeyCodes.KEY_DOWN) {
+                                        if (node.getNextSibling() != null) {
+                                            node.getNextSibling().<com.google.gwt.dom.client.Element>cast().addClassName("tags-suggestion-list-suggestion-focus");
+                                            node.<com.google.gwt.dom.client.Element>cast().removeClassName("tags-suggestion-list-suggestion-focus");
+                                        }
+                                    } else {
+                                        if (node.getPreviousSibling() != null) {
+                                            node.getPreviousSibling().<com.google.gwt.dom.client.Element>cast().addClassName("tags-suggestion-list-suggestion-focus");
+                                            node.<com.google.gwt.dom.client.Element>cast().removeClassName("tags-suggestion-list-suggestion-focus");
+                                        }
+                                    }
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            // we mark the first one
+                            if (!found && event.getKeyCode() == KeyCodes.KEY_DOWN) {
+                                suggestionList.getChild(0).<com.google.gwt.dom.client.Element>cast().addClassName("tags-suggestion-list-suggestion-focus");
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        DOM.sinkEvents(inputText.<com.google.gwt.user.client.Element>cast(), Event.ONKEYPRESS | Event.ONKEYDOWN | Event.ONKEYUP | Event.FOCUSEVENTS);
+        widthSpanTester = Document.get().createSpanElement();
+        widthSpanTester.setAttribute("style", "float: left; left: -1000px; position: absolute; display: inline-block;");
+
+        // create list item element and append all items
+        Element item = createTagLIElement(new EventListener() {
+
+            @Override
+            public void onBrowserEvent(Event event) {
+
+                if (event.getTypeInt() == Event.ONFOCUS) {
+                    inputText.focus();
+                }
+            }
+        }, Event.ONFOCUS);
+
+        item.addClassName("input-tag-list-tag-editable");
+        item.appendChild(inputText);
+
+        item.appendChild(widthSpanTester);
+
+        // append new list item into list
+        tagList.appendChild(item);
     }
 
-    private void handleNewTag() {
-        String value = inputText.getValue();
-        if (value.length() > 0) {
-            // find possilbe tag in suggested tags
-            Tag tag = findInSuggestedTags(value);
-            
-            // when mode allows only tags from oracle and there is no match, do nothing
-            if (mode == Mode.ONLY_SUGGESTED_TAGS && tag == null) {
-                return;
-            }
+    private void resetInputText() {
+        // reset input text
+        inputText.setValue("");
+        inputText.getStyle().setWidth(50, Unit.PX);
+    }
 
-            // if we did not found tag from oracle then create new one
-            if (tag == null) {
-                if(tagValidator != null && !tagValidator.isValid(value)){
-                    return;
+    /*----------------------------------------------------------------------------*/
+    /*---- S U G G E S T I O N S ----*/
+    /*----------------------------------------------------------------------------*/
+    protected LIElement createSuggestionElement(final Tag tag) {
+        // create list item
+        final LIElement listItem = Document.get().createLIElement();
+        listItem.setClassName("tags-suggestion-list-suggestion");
+        listItem.setTabIndex(0);
+        // Set event listeners
+        DOM.setEventListener(listItem.<com.google.gwt.user.client.Element>cast(), new EventListener() {
+
+            @Override
+            public void onBrowserEvent(Event event) {
+                //
+                // There is no ONMOUSEOUT because every time when mouse over is
+                // called , we will remove class about active tag.
+                //
+                if (event.getTypeInt() == Event.ONMOUSEOVER) {
+                    for (int i = 0; i < suggestionList.getChildCount(); i++) {
+                        suggestionList.getChild(i).<com.google.gwt.user.client.Element>cast().removeClassName("tags-suggestion-list-suggestion-focus");
+                    }
+                    listItem.addClassName("tags-suggestion-list-suggestion-focus");
+
+                    // 
+                    // Cachtes when
+                    // 
+                } else if (event.getTypeInt() == Event.ONCLICK) {
+                    appendTag(tag);
                 }
-                tag = new Tag(null, value);
             }
-            appendTag(tag);
-            resetInputText();
-        }
+        });
+        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(), Event.ONMOUSEOVER | Event.ONCLICK);
+        return listItem;
+    }
+
+    private void hideAndClearSuggestionList() {        
+        suggestedTags.clear();
+        suggestionList.getStyle().setDisplay(Display.NONE);
     }
 
     private Tag findInSuggestedTags(String value) {
@@ -343,6 +477,76 @@ public class InputTag<T extends Tag> extends Widget {
             }
         }
         return null;
+    }
+
+    /*----------------------------------------------------------------------------*/
+    /*---- U T I L S  ----*/
+    /*----------------------------------------------------------------------------*/
+    private static void shiftFocusLeft(Element listItem) {
+        Node sib = listItem.getPreviousSibling();
+        if (sib != null) {
+            sib.<com.google.gwt.user.client.Element>cast().focus();
+        }
+    }
+
+    private static void shiftFocusRight(Element listItem) {
+        Element sib = listItem.getNextSiblingElement();
+        if (sib != null) {
+            sib.focus();
+        }
+    }
+
+    private static boolean hasNodeChildsStyleClass(Node node, String className) {
+        for (int i = 0; i < node.getChildCount(); i++) {
+            if (hasNodeStyleClass(node.getChild(i), className)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasNodeStyleClass(Node node, String className) {
+        String c = DOM.getElementAttribute(node.<com.google.gwt.user.client.Element>cast(), "class");
+        if (c != null && c.length() > 0) {
+            String[] classes = c.split(" ");
+            for (int i = 0; i < classes.length; i++) {
+                if (classes[i].equalsIgnoreCase(className)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isAlfaNumericKey(int key) {
+        return !isSystemKey(key);
+    }
+
+    /**
+     * Returns <code>true</code> if event.getKeyCode is system key like: Enter,
+     * Backspace, Alt..
+     * <br/>
+     * All non system keycodes has key 0.
+     * @param keyCode
+     * @return 
+     */
+    private static boolean isSystemKey(int keyCode) {
+        return keyCode == KeyCodes.KEY_ALT
+                || keyCode == KeyCodes.KEY_BACKSPACE
+                || keyCode == KeyCodes.KEY_CTRL
+                || keyCode == KeyCodes.KEY_DELETE
+                || keyCode == KeyCodes.KEY_DOWN
+                || keyCode == KeyCodes.KEY_END
+                || keyCode == KeyCodes.KEY_ENTER
+                || keyCode == KeyCodes.KEY_ESCAPE
+                || keyCode == KeyCodes.KEY_HOME
+                || keyCode == KeyCodes.KEY_LEFT
+                || keyCode == KeyCodes.KEY_PAGEDOWN
+                || keyCode == KeyCodes.KEY_PAGEUP
+                || keyCode == KeyCodes.KEY_RIGHT
+                || keyCode == KeyCodes.KEY_SHIFT
+                || keyCode == KeyCodes.KEY_TAB
+                || keyCode == KeyCodes.KEY_UP;
     }
 
     /**
@@ -370,13 +574,13 @@ public class InputTag<T extends Tag> extends Widget {
     public void setMode(Mode mode) {
         this.mode = mode;
         switch (mode) {
-            case DEFAULT:
+            case WRITE:
                 setEditable(true);
                 break;
-            case ONLY_SUGGESTED_TAGS:
+            case SELECT_BOX:
                 setEditable(true);
                 break;
-            case READ_ONLY:
+            case READ:
                 setEditable(false);
                 break;
         }
@@ -384,7 +588,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /**
      * Make component only read only. This method has same effect when setting mode
-     * to {@link Mode#READ_ONLY}.
+     * to {@link Mode#READ}.
      *
      * @param value boolean value, when <code>true</code> then component is editable otherwise is not
      */
@@ -402,64 +606,6 @@ public class InputTag<T extends Tag> extends Widget {
                 itemTag.listItem.removeClassName("input-tag-list-item-deletable");
             }
         }
-    }
-
-    /**
-     * Initializes inputText element for inserting new tags by keyboard. There is
-     * only one inputText in time. 
-     */
-    protected void initializeInputText() {
-        inputText = (DOM.createInputText()).cast();
-        inputText.setClassName("input-tag-list-tag-input");
-        inputText.setTabIndex(0);
-        DOM.setEventListener(inputText.<com.google.gwt.user.client.Element>cast(), new EventListener() {
-
-            @Override
-            public void onBrowserEvent(Event event) {
-                if (event.getTypeInt() == Event.ONKEYPRESS && event.getKeyCode() == KeyCodes.KEY_ENTER) {
-                    handleNewTag();
-                } else if (event.getTypeInt() == Event.ONKEYDOWN) {
-                    if ((caretLastPosition == 1 || caretLastPosition == 0) && getCursorPos(inputText) == 0) {
-                        if (event.getKeyCode() == KeyCodes.KEY_BACKSPACE || event.getKeyCode() == KeyCodes.KEY_LEFT) {
-                            shiftFocusLeft(inputText.getParentNode().<com.google.gwt.user.client.Element>cast());
-                        }
-                    }
-                    caretLastPosition = getCursorPos(inputText);
-                } else if (event.getTypeInt() == Event.ONKEYUP) {
-                    handleInputChange();
-                } else if (event.getTypeInt() == Event.ONFOCUS) {
-                    inputText.getParentElement().addClassName("input-tag-list-tag-focus");
-                } else if (event.getTypeInt() == Event.ONBLUR) {
-                    inputText.getParentElement().removeClassName("input-tag-list-tag-focus");
-                    hideAndClearSuggestionList();
-
-                }
-            }
-        });
-        DOM.sinkEvents(inputText.<com.google.gwt.user.client.Element>cast(), Event.ONKEYPRESS | Event.ONKEYDOWN | Event.ONKEYUP | Event.FOCUSEVENTS);
-
-
-        widthSpanTester = Document.get().createSpanElement();
-        widthSpanTester.setAttribute("style", "float: left; left: -1000px; position: absolute; display: inline-block;");
-
-
-        // create list item element and append all items
-        Element item = createTagLIElement(new EventListener() {
-
-            @Override
-            public void onBrowserEvent(Event event) {
-
-                if (event.getTypeInt() == Event.ONFOCUS) {
-                    inputText.focus();
-                }
-            }
-        }, Event.ONFOCUS);
-        item.addClassName("input-tag-list-tag-editable");
-        item.appendChild(inputText);
-        item.appendChild(widthSpanTester);
-
-        // append new list item into list
-        tagList.appendChild(item);
     }
 
     /**
@@ -507,6 +653,20 @@ public class InputTag<T extends Tag> extends Widget {
     }
 
     /**
+     * @return the allowWhiteSpaceInTag
+     */
+    public boolean isAllowWhiteSpaceInTag() {
+        return allowWhiteSpaceInTag;
+    }
+
+    /**
+     * @param allowWhiteSpaceInTag the allowWhiteSpaceInTag to set
+     */
+    public void setAllowWhiteSpaceInTag(boolean allowWhiteSpaceInTag) {
+        this.allowWhiteSpaceInTag = allowWhiteSpaceInTag;
+    }
+
+    /**
      * Inner private class that identifies existing tags with list elements.
      */
     private class ItemTag<T extends Tag> {
@@ -534,10 +694,10 @@ public class InputTag<T extends Tag> extends Widget {
     public enum Mode {
 
         /** Read only mode, no other tags can be inserted */
-        READ_ONLY,
+        READ,
         /** Tags can be only from given set of items provided by {@link ... } */
-        ONLY_SUGGESTED_TAGS,
+        SELECT_BOX,
         /** Free tags */
-        DEFAULT;
+        WRITE;
     }
 }

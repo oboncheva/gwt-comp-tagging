@@ -1,7 +1,6 @@
 package com.google.code.gwt.component.tag;
 
 import com.google.gwt.dom.client.Element;
-import com.google.gwt.dom.client.LIElement;
 import com.google.gwt.user.client.DOM;
 
 /**
@@ -11,8 +10,7 @@ import com.google.gwt.user.client.DOM;
 public class DefaultSuggestionPresenter<T extends Tag> implements SuggestionPresenter<T>{
     
     @Override
-    public void createSuggestion(LIElement e, T tag, String text) {
-        e.setClassName("tags-suggestion-list-suggestion");
+    public void createSuggestion(Element e, T tag, String text) {        
         Element span = DOM.createSpan();
         if(tag.getTag().startsWith(text)){
             span.setInnerHTML("<strong>"+text+"</strong>"+tag.getTag().substring(text.length()));
