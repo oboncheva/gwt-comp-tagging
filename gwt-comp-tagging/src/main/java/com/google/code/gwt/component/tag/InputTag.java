@@ -45,6 +45,8 @@ public class InputTag<T extends Tag> extends Widget {
     private List<ItemTag<T>> tags;
     /** Reference to previously suggested tags */
     private List<T> suggestedTags;
+    /** New tags validator */
+    private TagValidator tagValidator;
 
     /*--------------------------------*/
     /*-- Component Worker Objects   --*/
@@ -116,7 +118,7 @@ public class InputTag<T extends Tag> extends Widget {
             for (Tag tagItem : tags) {
                 appendTag(tagItem);
             }
-        }        
+        }
 
 
         // init suggestion list
@@ -131,7 +133,7 @@ public class InputTag<T extends Tag> extends Widget {
         component.appendChild(suggestionListWraper);
     }
 
-    protected LIElement createTagLIElement() {
+    protected LIElement createTagLIElement(final EventListener listener, int eventBits) {
         // create list item
         final LIElement listItem = Document.get().createLIElement();
         listItem.setClassName("input-tag-list-item");
@@ -141,18 +143,19 @@ public class InputTag<T extends Tag> extends Widget {
 
             @Override
             public void onBrowserEvent(Event event) {
-                if (event.getTypeInt() == Event.ONMOUSEOUT) {
+                if (listener != null) {
+                    listener.onBrowserEvent(event);
+                }
+                if (event.getTypeInt() == Event.ONMOUSEOUT || event.getTypeInt() == Event.ONBLUR) {
                     listItem.removeClassName("input-tag-list-item-hover");
-                } else if (event.getTypeInt() == Event.ONMOUSEOVER) {
+                } else if (event.getTypeInt() == Event.ONMOUSEOVER || event.getTypeInt() == Event.ONFOCUS) {
                     listItem.addClassName("input-tag-list-item-hover");
                 }
             }
         });
-        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(), Event.ONMOUSEOUT | Event.ONMOUSEOVER);
+        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(),  Event.FOCUSEVENTS | Event.ONMOUSEOUT | Event.ONMOUSEOVER | eventBits);
         return listItem;
     }
-
-    
 
     /**
      * Appends tag to InputTag component. Tag is placed right after last tag.
@@ -161,28 +164,22 @@ public class InputTag<T extends Tag> extends Widget {
      */
     protected void appendTag(Tag tag) {
         // item
-        final Element item = createTagLIElement();
-        item.addClassName("input-tag-list-box");
-        item.addClassName("input-tag-list-item-deletable");
-
-        // add additional listeners to item
-        DOM.setEventListener(item.<com.google.gwt.user.client.Element>cast(), new EventListener() {
-
+        final Element item = createTagLIElement(new EventListener() {
             @Override
             public void onBrowserEvent(Event event) {
 
                 if (event.getTypeInt() == Event.ONKEYDOWN && (event.getKeyCode() == KeyCodes.KEY_BACKSPACE || event.getKeyCode() == KeyCodes.KEY_DELETE)) {
-                    removeTag(item);
+                    removeTag(event.getEventTarget().<com.google.gwt.dom.client.Element>cast());
                 } else if (event.getTypeInt() == Event.ONKEYDOWN && event.getKeyCode() == KeyCodes.KEY_LEFT) {
-                    shiftFocusLeft(item);
+                    shiftFocusLeft(event.getEventTarget().<com.google.gwt.dom.client.Element>cast());
                 } else if (event.getTypeInt() == Event.ONKEYDOWN && event.getKeyCode() == KeyCodes.KEY_RIGHT) {
-                    shiftFocusRight(item);
+                    shiftFocusRight(event.getEventTarget().<com.google.gwt.dom.client.Element>cast());
                 }
             }
-        });
-        DOM.sinkEvents(item.<com.google.gwt.user.client.Element>cast(), Event.ONKEYDOWN);
-
-
+        },  Event.ONKEYDOWN);
+        item.addClassName("input-tag-list-box");
+        item.addClassName("input-tag-list-item-deletable");
+        
         // create tag text
         SpanElement tagSpan = Document.get().createSpanElement();
         tagSpan.setInnerText(tag.getTag());
@@ -217,16 +214,15 @@ public class InputTag<T extends Tag> extends Widget {
 
             @Override
             public void onBrowserEvent(Event event) {
-                if (event.getTypeInt() == Event.ONMOUSEOUT) {
+                if (event.getTypeInt() == Event.ONMOUSEOUT ) {
                     listItem.removeClassName("tags-suggestion-list-suggestion-focus");
-                } else if (event.getTypeInt() == Event.ONMOUSEOVER) {
+                } else if (event.getTypeInt() == Event.ONMOUSEOVER ) {
                     listItem.addClassName("tags-suggestion-list-suggestion-focus");
                 } else if (event.getTypeInt() == Event.ONCLICK || (event.getTypeInt() == Event.ONKEYDOWN && event.getKeyCode() == KeyCodes.KEY_ENTER)) {
-                    
                 }
             }
         });
-        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(), Event.ONMOUSEOUT | Event.ONMOUSEOVER | Event.ONCLICK | Event.ONKEYUP );
+        DOM.sinkEvents(listItem.<com.google.gwt.user.client.Element>cast(), Event.ONMOUSEOUT | Event.ONMOUSEOVER | Event.ONCLICK | Event.ONKEYUP);
         return listItem;
     }
 
@@ -261,13 +257,7 @@ public class InputTag<T extends Tag> extends Widget {
         inputText.getStyle().setWidth(50, Unit.PX);
     }
 
-    private void shiftFocusLeft() {
-        Node sib = inputText.getParentNode().getPreviousSibling();
-        if (sib != null) {
-            sib.<com.google.gwt.user.client.Element>cast().focus();
-        }
-    }
-
+    
     private void shiftFocusLeft(Element listItem) {
         Node sib = listItem.getPreviousSibling();
         if (sib != null) {
@@ -326,7 +316,7 @@ public class InputTag<T extends Tag> extends Widget {
         if (value.length() > 0) {
             // find possilbe tag in suggested tags
             Tag tag = findInSuggestedTags(value);
-
+            
             // when mode allows only tags from oracle and there is no match, do nothing
             if (mode == Mode.ONLY_SUGGESTED_TAGS && tag == null) {
                 return;
@@ -334,6 +324,9 @@ public class InputTag<T extends Tag> extends Widget {
 
             // if we did not found tag from oracle then create new one
             if (tag == null) {
+                if(tagValidator != null && !tagValidator.isValid(value)){
+                    return;
+                }
                 tag = new Tag(null, value);
             }
             appendTag(tag);
@@ -410,12 +403,12 @@ public class InputTag<T extends Tag> extends Widget {
             }
         }
     }
-    
+
     /**
      * Initializes inputText element for inserting new tags by keyboard. There is
      * only one inputText in time. 
      */
-    protected void initializeInputText() {        
+    protected void initializeInputText() {
         inputText = (DOM.createInputText()).cast();
         inputText.setClassName("input-tag-list-tag-input");
         inputText.setTabIndex(0);
@@ -423,12 +416,12 @@ public class InputTag<T extends Tag> extends Widget {
 
             @Override
             public void onBrowserEvent(Event event) {
-                if (event.getTypeInt() == Event.ONKEYPRESS && event.getKeyCode() == KeyCodes.KEY_ENTER) {                    
-                        handleNewTag();                    
+                if (event.getTypeInt() == Event.ONKEYPRESS && event.getKeyCode() == KeyCodes.KEY_ENTER) {
+                    handleNewTag();
                 } else if (event.getTypeInt() == Event.ONKEYDOWN) {
                     if ((caretLastPosition == 1 || caretLastPosition == 0) && getCursorPos(inputText) == 0) {
                         if (event.getKeyCode() == KeyCodes.KEY_BACKSPACE || event.getKeyCode() == KeyCodes.KEY_LEFT) {
-                            shiftFocusLeft();
+                            shiftFocusLeft(inputText.getParentNode().<com.google.gwt.user.client.Element>cast());
                         }
                     }
                     caretLastPosition = getCursorPos(inputText);
@@ -445,18 +438,13 @@ public class InputTag<T extends Tag> extends Widget {
         });
         DOM.sinkEvents(inputText.<com.google.gwt.user.client.Element>cast(), Event.ONKEYPRESS | Event.ONKEYDOWN | Event.ONKEYUP | Event.FOCUSEVENTS);
 
-        
+
         widthSpanTester = Document.get().createSpanElement();
         widthSpanTester.setAttribute("style", "float: left; left: -1000px; position: absolute; display: inline-block;");
 
 
         // create list item element and append all items
-        Element item = createTagLIElement();
-        item.addClassName("input-tag-list-tag-editable");
-        item.appendChild(inputText);
-        item.appendChild(widthSpanTester);
-        // whent list item will gain focus then we will pass focus to input text
-        DOM.setEventListener(item.<com.google.gwt.user.client.Element>cast(), new EventListener() {
+        Element item = createTagLIElement(new EventListener() {
 
             @Override
             public void onBrowserEvent(Event event) {
@@ -465,11 +453,13 @@ public class InputTag<T extends Tag> extends Widget {
                     inputText.focus();
                 }
             }
-        });
-        DOM.sinkEvents(item.<com.google.gwt.user.client.Element>cast(), Event.ONFOCUS);
+        }, Event.ONFOCUS);
+        item.addClassName("input-tag-list-tag-editable");
+        item.appendChild(inputText);
+        item.appendChild(widthSpanTester);
 
         // append new list item into list
-        tagList.appendChild(item);       
+        tagList.appendChild(item);
     }
 
     /**
@@ -500,6 +490,20 @@ public class InputTag<T extends Tag> extends Widget {
      */
     public void setSuggestionPresenter(SuggestionPresenter<T> suggestionPresenter) {
         this.suggestionPresenter = suggestionPresenter;
+    }
+
+    /**
+     * @return the tagValidator
+     */
+    public TagValidator getTagValidator() {
+        return tagValidator;
+    }
+
+    /**
+     * @param tagValidator the tagValidator to set
+     */
+    public void setTagValidator(TagValidator tagValidator) {
+        this.tagValidator = tagValidator;
     }
 
     /**

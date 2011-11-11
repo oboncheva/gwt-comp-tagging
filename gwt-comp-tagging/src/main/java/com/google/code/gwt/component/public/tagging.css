@@ -66,6 +66,7 @@
     height: 7px;
     font-size: 1px;
     background: url('close.gif');
+    cursor: pointer;
 }
 
 
