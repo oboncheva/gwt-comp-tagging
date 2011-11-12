@@ -13,6 +13,7 @@ import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.EventListener;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Widget;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,13 +52,15 @@ public class InputTag<T extends Tag> extends Widget {
     /*--------------------------------*/
     /*-- Component Worker Objects   --*/
     /*--------------------------------*/
+    private int suggestionSynchroId = 0;
     /** Delegete for getting suggestions for given input */
-    private SuggestionDelegate<T> suggestionDelegate;
+    private SuggestionCallback<T> suggestionDelegate;
     /** Presenter for suggestions for given input */
     private SuggestionPresenter<T> suggestionPresenter;
     /** Caret last position used to compute whether the focus of active element should be switched to next / previous sibling */
     private int caretLastPosition = 0;
     private boolean allowWhiteSpaceInTag = false;
+    
     /** Mode of tag input */
     private Mode mode;
 
@@ -125,11 +128,13 @@ public class InputTag<T extends Tag> extends Widget {
         // init suggestion list
         suggestionList = Document.get().createULElement();
         suggestionList.setClassName("tags-suggestion-list");
+        suggestionList.setId("suggestion-list");
 
         // suggestion list wrapper
         Element suggestionListWraper = DOM.createDiv();
         suggestionListWraper.setClassName("tags-suggestion-wrapper");
         suggestionListWraper.appendChild(suggestionList);
+        suggestionListWraper.setId("suggestion-wrapper");
 
         component.appendChild(suggestionListWraper);
     }
@@ -252,6 +257,7 @@ public class InputTag<T extends Tag> extends Widget {
             }
             appendTag(tag);
             resetInputText();
+            hideSuggestions();
         }
     }
 
@@ -260,38 +266,61 @@ public class InputTag<T extends Tag> extends Widget {
     /*----------------------------------------------------------------------------*/
     private void inputTextChanged() {
 
-        String text = inputText.getValue();
+        final String text = inputText.getValue();
 
         // update input text width
         widthSpanTester.setInnerText(text);
         inputText.getStyle().setWidth(widthSpanTester.getOffsetWidth() + 20, Unit.PX);
-
-        System.out.println("change!");
-
-        // hide and clear suggestions
-        hideAndClearSuggestionList();
-
+               
         // try suggestion oraculum for tags
-        if (getSuggestionDelegate() != null) {
+        if (getSuggestionDelegate() != null && text.length() > 0) {
+            final int newSynchroId = ++suggestionSynchroId;
 
+            // hide and clear suggestions
+            hideSuggestions();
             
+            // clear suggestions
+            suggestedTags.clear();
             // clear suggestions element
             while (suggestionList.hasChildNodes()) {
                 suggestionList.removeChild(suggestionList.getFirstChild());
             }
 
-            // try to find new suggestions
-            getSuggestionDelegate().findSuggestions(text, suggestedTags);
-            if (suggestedTags.size() > 0) {
-                suggestionList.getStyle().setDisplay(Display.BLOCK);
-                // create suggestions list items
-                for (int i = 0; i < suggestedTags.size(); i++) {
-                    final T tag = suggestedTags.get(i);
-                    LIElement suggestionElement = createSuggestionElement(tag);
-                    getSuggestionPresenter().createSuggestion(suggestionElement, tag, text);
-                    suggestionList.appendChild(suggestionElement);
+            getSuggestionDelegate().findSuggestions(text, new SuggestionCallback.Callback() {
+
+                @Override
+                public int getId() {
+                    return newSynchroId;
                 }
-            }
+
+                @Override
+                public boolean found(List suggestions) {
+                    if (newSynchroId != suggestionSynchroId) {
+                        return false;
+                    }
+
+                    hideSuggestions();
+
+                    suggestedTags = suggestions;
+                    if (suggestedTags.size() > 0) {
+                        suggestionList.getStyle().setDisplay(Display.BLOCK);
+                        // create suggestions list items
+                        for (int i = 0; i < suggestedTags.size(); i++) {
+                            final T tag = suggestedTags.get(i);
+                            LIElement suggestionElement = createSuggestionElement(tag);
+                            getSuggestionPresenter().createSuggestion(suggestionElement, tag, text);
+                            suggestionList.appendChild(suggestionElement);
+                            // if select mode, then we select the first
+                            if(i == 0 && getMode().equals(Mode.SELECT_BOX)){
+                                suggestionElement.addClassName("tags-suggestion-list-suggestion-focus");
+                            }
+                        }
+                    }
+                    return true;
+                }
+            });
+
+
         }
     }
 
@@ -316,17 +345,17 @@ public class InputTag<T extends Tag> extends Widget {
                     if (event.getKeyCode() == KeyCodes.KEY_ENTER) {
                         Node node = null;
                         int i = 0;
-                        for ( ; i < suggestionList.getChildCount(); i++) {
+                        for (; i < suggestionList.getChildCount(); i++) {
                             if (hasNodeStyleClass(suggestionList.getChild(i), "tags-suggestion-list-suggestion-focus")) {
                                 node = suggestionList.getChild(i);
                                 break;
                             }
                         }
 
-                        if (node != null) {                     
+                        if (node != null) {
                             resetInputText();
-                            appendTag(suggestedTags.get(i)); 
-                            
+                            appendTag(suggestedTags.get(i));
+                            hideSuggestions();
                         } else {
                             handleNewTag();
                         }
@@ -346,14 +375,28 @@ public class InputTag<T extends Tag> extends Widget {
                     //                                
                 } else if (event.getTypeInt() == Event.ONFOCUS) {
                     inputText.getParentElement().addClassName("input-tag-list-tag-focus");
-
+                    
                     //
-                    // Handles input focus steal
+                    // Handles input focus steal - only when source is not by click 
+                    // and click has been made above suggestion list
                     //                                
                 } else if (event.getTypeInt() == Event.ONBLUR) {
                     inputText.getParentElement().removeClassName("input-tag-list-tag-focus");
-                    hideAndClearSuggestionList();
+                    /**
+                     * TODO(somebody): find better solution how to catch BLUR, and hideSuggestions
+                     * when focus was stolen by clicking on suggestion. If we hide
+                     * suggestion list too soon, then ONCLICK event will be not
+                     * fired and suggestion won't be selected.
+                     */
+                    Timer t = new Timer() {
 
+                        @Override
+                        public void run() {
+                            hideSuggestions();
+                        }
+                    };
+                    t.schedule(100);
+                                        
                     //
                     // Handles update of caret position (to decide whether to jump to previous tag
                     // OR handles navigation instide of suggestion list
@@ -431,9 +474,12 @@ public class InputTag<T extends Tag> extends Widget {
     /*----------------------------------------------------------------------------*/
     /*---- S U G G E S T I O N S ----*/
     /*----------------------------------------------------------------------------*/
+    private static int l = 0;
+
     protected LIElement createSuggestionElement(final Tag tag) {
         // create list item
         final LIElement listItem = Document.get().createLIElement();
+        listItem.setId("suggestion-" + (l++));
         listItem.setClassName("tags-suggestion-list-suggestion");
         listItem.setTabIndex(0);
         // Set event listeners
@@ -452,10 +498,14 @@ public class InputTag<T extends Tag> extends Widget {
                     listItem.addClassName("tags-suggestion-list-suggestion-focus");
 
                     // 
-                    // Cachtes when
+                    // Handles suggestion from suggestion list
                     // 
                 } else if (event.getTypeInt() == Event.ONCLICK) {
                     appendTag(tag);
+                    resetInputText();
+                    hideSuggestions();                   
+                    inputText.focus();
+                    
                 }
             }
         });
@@ -463,8 +513,7 @@ public class InputTag<T extends Tag> extends Widget {
         return listItem;
     }
 
-    private void hideAndClearSuggestionList() {        
-        suggestedTags.clear();
+    private void hideSuggestions() {
         suggestionList.getStyle().setDisplay(Display.NONE);
     }
 
@@ -612,7 +661,7 @@ public class InputTag<T extends Tag> extends Widget {
      * Delegete for getting suggestions for given input
      * @return the suggestionDelegate
      */
-    public SuggestionDelegate<T> getSuggestionDelegate() {
+    public SuggestionCallback<T> getSuggestionDelegate() {
         return suggestionDelegate;
     }
 
@@ -620,7 +669,7 @@ public class InputTag<T extends Tag> extends Widget {
      * Delegete for getting suggestions for given input
      * @param suggestionDelegate the suggestionDelegate to set
      */
-    public void setSuggestionDelegate(SuggestionDelegate<T> suggestionDelegate) {
+    public void setSuggestionDelegate(SuggestionCallback<T> suggestionDelegate) {
         this.suggestionDelegate = suggestionDelegate;
     }
 

@@ -1,6 +1,7 @@
 package com.google.code.gwt.component.client.example;
 
-import com.google.code.gwt.component.tag.SuggestionDelegate;
+import com.google.code.gwt.component.tag.SuggestionCallback;
+import com.google.code.gwt.component.tag.SuggestionCallback.Callback;
 import com.google.code.gwt.component.tag.Tag;
 import com.google.code.gwt.component.tag.InputTag;
 import com.google.code.gwt.component.tag.StringTag;
@@ -17,10 +18,10 @@ public class TaggingEntryPoint implements EntryPoint {
 
     @Override
     public void onModuleLoad() {
-        
-        
-        
-        
+
+
+
+
         List<StringTag> items = new ArrayList<StringTag>();
         items.add(new StringTag("Tag 1", "Tag 1"));
         items.add(new StringTag("Tag 2", "Tag 2"));
@@ -37,6 +38,7 @@ public class TaggingEntryPoint implements EntryPoint {
         InputTag<StringTag> ti3 = new InputTag<StringTag>(items);
         ti3.setWidth("400px");
         ti3.setSuggestionDelegate(new SuggestionDelegateMock());
+        ti3.setMode(InputTag.Mode.SELECT_BOX);
 
         RootPanel.get("test").add(ti1);
         RootPanel.get("test").add(ti2);
@@ -44,28 +46,31 @@ public class TaggingEntryPoint implements EntryPoint {
 
     }
 
-    protected class SuggestionDelegateMock implements SuggestionDelegate<StringTag> {
+    protected class SuggestionDelegateMock implements SuggestionCallback<StringTag> {
 
         @Override
-        public void findSuggestions(String text, List<StringTag> suggestions) {
-            if (text.startsWith("jav")) {
-                suggestions.add(new StringTag(text, "java"));
-                suggestions.add(new StringTag(text, "javascipt"));
-            } else if (text.startsWith("ja")) {
-                suggestions.add(new StringTag(text, "java"));
-                suggestions.add(new StringTag(text, "javascipt"));
-                suggestions.add(new StringTag(text, "jackson"));
-                suggestions.add(new StringTag(text, "jarvana"));
-                suggestions.add(new StringTag(text, "jabadabadoo"));                
-            } else if (text.startsWith("j")) {
-                suggestions.add(new StringTag(text, "java"));
-                suggestions.add(new StringTag(text, "javascipt"));
-                suggestions.add(new StringTag(text, "jackson"));
-                suggestions.add(new StringTag(text, "jarvana"));
-                suggestions.add(new StringTag(text, "jabadabadoo"));
-                suggestions.add(new StringTag(text, "joseph"));
-                suggestions.add(new StringTag(text, "johnny"));
-            }  
+        public void findSuggestions(String text, Callback callback) {
+            List<StringTag> suggestions = new ArrayList<StringTag>();
+            List<String> plain = new ArrayList<String>();
+            plain.add("johnny");
+            plain.add("joging");
+            plain.add("jasper");
+            plain.add("java");
+            plain.add("javascipt");
+            plain.add("javamania");
+            plain.add("jackson");
+            plain.add("jarvana");
+            plain.add("jabadabadoo");
+            plain.add("joseph");
+            plain.add("jerry");
+
+            for (String string : plain) {
+                if (string.startsWith(text)) {
+                    suggestions.add(new StringTag(text, string));
+                }
+            }
+
+            callback.found(suggestions);
         }
     }
 }
