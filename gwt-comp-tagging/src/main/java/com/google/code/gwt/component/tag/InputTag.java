@@ -209,7 +209,7 @@ public class InputTag<T extends Tag> extends Widget {
         // insert into DOM
         tagList.insertBefore(item, inputText.getParentElement());
         // insert into inner list
-        tags.add(new ItemTag(tag, item));
+        getTags().add(new ItemTag(tag, item));
     }
 
     private void removeTag(Element listItem) {
@@ -218,7 +218,7 @@ public class InputTag<T extends Tag> extends Widget {
 
             // remove tag from inner tag list
             ItemTag t = null;
-            for (ItemTag itemTag : tags) {
+            for (ItemTag itemTag : getTags()) {
                 if (itemTag.getListItem().equals(listItem)) {
                     t = itemTag;
                     break;
@@ -227,7 +227,7 @@ public class InputTag<T extends Tag> extends Widget {
             if (t == null) {
                 throw new NullPointerException("List item element that has to be removed was not found!");
             }
-            tags.remove(t);
+            getTags().remove(t);
 
             // make next sibling active
             shiftFocusRight(listItem);
@@ -644,13 +644,13 @@ public class InputTag<T extends Tag> extends Widget {
     public void setEditable(boolean value) {
         if (inputText.getParentElement().getParentElement() == null && value) {
             tagList.appendChild(inputText.getParentElement());
-            for (ItemTag<T> itemTag : tags) {
+            for (ItemTag<T> itemTag : getTags()) {
                 itemTag.listItem.getFirstChildElement().getNextSiblingElement().getStyle().setVisibility(Visibility.VISIBLE);
                 itemTag.listItem.addClassName("input-tag-list-item-deletable");
             }
         } else if (inputText.getParentElement().getParentElement() != null && !value) {
             inputText.getParentElement().removeFromParent();
-            for (ItemTag<T> itemTag : tags) {
+            for (ItemTag<T> itemTag : getTags()) {
                 itemTag.listItem.getFirstChildElement().getNextSiblingElement().getStyle().setVisibility(Visibility.HIDDEN);
                 itemTag.listItem.removeClassName("input-tag-list-item-deletable");
             }
@@ -716,6 +716,13 @@ public class InputTag<T extends Tag> extends Widget {
     }
 
     /**
+     * @return the tags
+     */
+    public List<ItemTag<T>> getTags() {
+        return tags;
+    }
+
+    /**
      * Inner private class that identifies existing tags with list elements.
      */
     private class ItemTag<T extends Tag> {
@@ -748,5 +755,5 @@ public class InputTag<T extends Tag> extends Widget {
         SELECT_BOX,
         /** Free tags */
         WRITE;
-    }
+    }        
 }
