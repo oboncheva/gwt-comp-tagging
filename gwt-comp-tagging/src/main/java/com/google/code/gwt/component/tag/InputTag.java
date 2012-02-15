@@ -19,49 +19,94 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 
+ *
  *
  *
  * @author Palo Gressa <gressa@acemcee.com>
  */
 public class InputTag<T extends Tag> extends Widget {
 
-    /*------------------------------*/
-    /*-- Component DOM Elements   --*/
-    /*------------------------------*/
-    /** Main component DIV element */
+    /*
+     * ------------------------------
+     */
+    /*
+     * -- Component DOM Elements --
+     */
+    /*
+     * ------------------------------
+     */
+    /**
+     * Main component DIV element
+     */
     private Element component;
-    /** List that holds items */
+    /**
+     * List that holds items
+     */
     private Element tagList;
-    /** Suggestions list */
+    /**
+     * Suggestions list
+     */
     private Element suggestionList;
-    /** Currently active input text */
+    /**
+     * Currently active input text
+     */
     private InputElement inputText;
-    /** Span element which is positioned outside of screen for computing width of new tag */
+    /**
+     * Span element which is positioned outside of screen for computing width of
+     * new tag
+     */
     private SpanElement widthSpanTester;
-    /*----------------------------------*/
-    /*-- Component Business Objects   --*/
-    /*----------------------------------*/
-    /** Tags */
+    /*
+     * ----------------------------------
+     */
+    /*
+     * -- Component Business Objects --
+     */
+    /*
+     * ----------------------------------
+     */
+    /**
+     * Tags
+     */
     private List<ItemTag<T>> tags;
-    /** Reference to previously suggested tags */
+    /**
+     * Reference to previously suggested tags
+     */
     private List<T> suggestedTags;
-    /** New tags validator */
+    /**
+     * New tags validator
+     */
     private TagValidator tagValidator;
 
-    /*--------------------------------*/
-    /*-- Component Worker Objects   --*/
-    /*--------------------------------*/
+    /*
+     * --------------------------------
+     */
+    /*
+     * -- Component Worker Objects --
+     */
+    /*
+     * --------------------------------
+     */
     private int suggestionSynchroId = 0;
-    /** Delegete for getting suggestions for given input */
+    /**
+     * Delegete for getting suggestions for given input
+     */
     private SuggestionCallback<T> suggestionDelegate;
-    /** Presenter for suggestions for given input */
+    /**
+     * Presenter for suggestions for given input
+     */
     private SuggestionPresenter<T> suggestionPresenter;
-    /** Caret last position used to compute whether the focus of active element should be switched to next / previous sibling */
+    /**
+     * Caret last position used to compute whether the focus of active element
+     * should be switched to next / previous sibling
+     */
     private int caretLastPosition = 0;
     private boolean allowWhiteSpaceInTag = false;
-    
-    /** Mode of tag input */
+    private boolean allowDuplicates = false;
+    private Timer t;
+    /**
+     * Mode of tag input
+     */
     private Mode mode;
 
     public InputTag(List<T> tags) {
@@ -93,12 +138,29 @@ public class InputTag<T extends Tag> extends Widget {
         DOM.setStyleAttribute(suggestionList.getParentElement().<com.google.gwt.user.client.Element>cast(), "width", value);
     }
 
+    private void handleNewTag(Tag tag) {
+        appendTag(tag);
+        resetInputText();
+        if (Mode.SELECT_BOX.equals(mode)) {
+            if (t != null) {
+                t.cancel();
+            }
+            inputTextChanged(true);
+        } else {
+            hideSuggestions();
+        }
+        inputText.focus();
+
+    }
+
     private void initLayout(List<T> tags) {
         // init main wrapper area
         component = DOM.createDiv();
         component.setClassName("input-tag");
 
-        /** UL list wrapper */
+        /**
+         * UL list wrapper
+         */
         Element tagListWrapeer = DOM.createDiv();
         tagListWrapeer.setClassName("input-tag-list");
 
@@ -165,6 +227,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /**
      * Appends tag to InputTag component. Tag is placed right after last tag.
+     *
      * @param tag representation
      * @return list item
      */
@@ -209,7 +272,7 @@ public class InputTag<T extends Tag> extends Widget {
         // insert into DOM
         tagList.insertBefore(item, inputText.getParentElement());
         // insert into inner list
-        getTags().add(new ItemTag(tag, item));
+        getInputTags().add(new ItemTag(tag, item));
     }
 
     private void removeTag(Element listItem) {
@@ -218,7 +281,7 @@ public class InputTag<T extends Tag> extends Widget {
 
             // remove tag from inner tag list
             ItemTag t = null;
-            for (ItemTag itemTag : getTags()) {
+            for (ItemTag itemTag : getInputTags()) {
                 if (itemTag.getListItem().equals(listItem)) {
                     t = itemTag;
                     break;
@@ -227,7 +290,7 @@ public class InputTag<T extends Tag> extends Widget {
             if (t == null) {
                 throw new NullPointerException("List item element that has to be removed was not found!");
             }
-            getTags().remove(t);
+            getInputTags().remove(t);
 
             // make next sibling active
             shiftFocusRight(listItem);
@@ -239,7 +302,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     private void handleNewTag() {
         String value = inputText.getValue();
-        if (value.length() > 0) {
+        if (value.trim().length() > 0) {
             // find possilbe tag in suggested tags
             Tag tag = findInSuggestedTags(value);
 
@@ -249,36 +312,39 @@ public class InputTag<T extends Tag> extends Widget {
 
             // if we did not found tag from oracle then create new one
             if (tag == null) {
-
                 if (tagValidator != null && !tagValidator.isValid(value)) {
                     return;
                 }
                 tag = new Tag(null, value);
             }
-            appendTag(tag);
-            resetInputText();
-            hideSuggestions();
+            handleNewTag(tag);
         }
     }
 
-    /*----------------------------------------------------------------------------*/
-    /*---- I N P U T   T E X T  ----*/
-    /*----------------------------------------------------------------------------*/
-    private void inputTextChanged() {
+    /*
+     * ----------------------------------------------------------------------------
+     */
+    /*
+     * ---- I N P U T T E X T ----
+     */
+    /*
+     * ----------------------------------------------------------------------------
+     */
+    private void inputTextChanged(boolean force) {
 
         final String text = inputText.getValue();
 
         // update input text width
         widthSpanTester.setInnerText(text);
         inputText.getStyle().setWidth(widthSpanTester.getOffsetWidth() + 20, Unit.PX);
-               
+
         // try suggestion oraculum for tags
-        if (getSuggestionDelegate() != null && text.length() > 0) {
+        if (getSuggestionDelegate() != null && (force ? true : text.length() > 0)) {
             final int newSynchroId = ++suggestionSynchroId;
 
             // hide and clear suggestions
             hideSuggestions();
-            
+
             // clear suggestions
             suggestedTags.clear();
             // clear suggestions element
@@ -286,7 +352,7 @@ public class InputTag<T extends Tag> extends Widget {
                 suggestionList.removeChild(suggestionList.getFirstChild());
             }
 
-            getSuggestionDelegate().findSuggestions(text, new SuggestionCallback.Callback() {
+            getSuggestionDelegate().findSuggestions(text, new SuggestionCallback.Callback<T>() {
 
                 @Override
                 public int getId() {
@@ -294,13 +360,16 @@ public class InputTag<T extends Tag> extends Widget {
                 }
 
                 @Override
-                public boolean found(List suggestions) {
+                public boolean found(List<T> suggestions) {
                     if (newSynchroId != suggestionSynchroId) {
                         return false;
                     }
 
-                    hideSuggestions();
 
+                    // we will filter out already suggested tags 
+                    if (!isAllowDuplicates()) {
+                        removeDuplicates(suggestions);
+                    }
                     suggestedTags = suggestions;
                     if (suggestedTags.size() > 0) {
                         suggestionList.getStyle().setDisplay(Display.BLOCK);
@@ -311,12 +380,28 @@ public class InputTag<T extends Tag> extends Widget {
                             getSuggestionPresenter().createSuggestion(suggestionElement, tag, text);
                             suggestionList.appendChild(suggestionElement);
                             // if select mode, then we select the first
-                            if(i == 0 && getMode().equals(Mode.SELECT_BOX)){
+                            if (i == 0 && getMode().equals(Mode.SELECT_BOX)) {
                                 suggestionElement.addClassName("tags-suggestion-list-suggestion-focus");
                             }
                         }
                     }
                     return true;
+                }
+
+                private void removeDuplicates(List<T> suggestions) {
+                    for (T alreadyChosen : getTags()) {
+                        T matched = null;
+                        for (T t : suggestions) {
+                            if (alreadyChosen.equals(t)) {
+                                matched = t;
+                                break;
+                            }
+
+                        }
+                        if (matched != null) {
+                            suggestions.remove(matched);
+                        }
+                    }
                 }
             });
 
@@ -325,8 +410,8 @@ public class InputTag<T extends Tag> extends Widget {
     }
 
     /**
-     * Initializes inputText element for inserting new tags by keyboard. There is
-     * only one inputText in time. 
+     * Initializes inputText element for inserting new tags by keyboard. There
+     * is only one inputText in time.
      */
     protected void initializeInputText() {
         inputText = (DOM.createInputText()).cast();
@@ -353,13 +438,11 @@ public class InputTag<T extends Tag> extends Widget {
                         }
 
                         if (node != null) {
-                            resetInputText();
-                            appendTag(suggestedTags.get(i));
-                            hideSuggestions();
+                            handleNewTag(suggestedTags.get(i));
                         } else {
                             handleNewTag();
                         }
-                        // proces new tags when spacebat is hit
+                        // proces new tags when spacebar is hit
                     } else if (event.getCharCode() == 32 && !isAllowWhiteSpaceInTag()) {
                         handleNewTag();
                     }
@@ -368,14 +451,18 @@ public class InputTag<T extends Tag> extends Widget {
                     // Handles input changed only when input is alfanumeric. Recounts input width and updates input text
                     //                            
                 } else if (event.getTypeInt() == Event.ONKEYUP && (isAlfaNumericKey(event.getKeyCode()) || event.getKeyCode() == KeyCodes.KEY_BACKSPACE)) {
-                    inputTextChanged();
+                    inputTextChanged(false);
 
                     //
                     // Handles input focus 
                     //                                
                 } else if (event.getTypeInt() == Event.ONFOCUS) {
                     inputText.getParentElement().addClassName("input-tag-list-tag-focus");
-                    
+                    // we will show all suggestions
+                    if (Mode.SELECT_BOX.equals(mode)) {
+                        inputTextChanged(true);
+                    }
+
                     //
                     // Handles input focus steal - only when source is not by click 
                     // and click has been made above suggestion list
@@ -383,20 +470,22 @@ public class InputTag<T extends Tag> extends Widget {
                 } else if (event.getTypeInt() == Event.ONBLUR) {
                     inputText.getParentElement().removeClassName("input-tag-list-tag-focus");
                     /**
-                     * TODO(somebody): find better solution how to catch BLUR, and hideSuggestions
-                     * when focus was stolen by clicking on suggestion. If we hide
-                     * suggestion list too soon, then ONCLICK event will be not
-                     * fired and suggestion won't be selected.
+                     * TODO(somebody): find better solution how to catch BLUR,
+                     * and hideSuggestions when focus was stolen by clicking on
+                     * suggestion. If we hide suggestion list too soon, then
+                     * ONCLICK event will be not fired and suggestion won't be
+                     * selected.
                      */
-                    Timer t = new Timer() {
+                    t = new Timer() {
 
                         @Override
                         public void run() {
                             hideSuggestions();
+                            t = null;
                         }
                     };
                     t.schedule(100);
-                                        
+
                     //
                     // Handles update of caret position (to decide whether to jump to previous tag
                     // OR handles navigation instide of suggestion list
@@ -449,10 +538,13 @@ public class InputTag<T extends Tag> extends Widget {
 
             @Override
             public void onBrowserEvent(Event event) {
-
                 if (event.getTypeInt() == Event.ONFOCUS) {
                     inputText.focus();
+                    if (Mode.SELECT_BOX.equals(mode)) {
+                        inputTextChanged(true);
+                    }
                 }
+
             }
         }, Event.ONFOCUS);
 
@@ -471,9 +563,15 @@ public class InputTag<T extends Tag> extends Widget {
         inputText.getStyle().setWidth(50, Unit.PX);
     }
 
-    /*----------------------------------------------------------------------------*/
-    /*---- S U G G E S T I O N S ----*/
-    /*----------------------------------------------------------------------------*/
+    /*
+     * ----------------------------------------------------------------------------
+     */
+    /*
+     * ---- S U G G E S T I O N S ----
+     */
+    /*
+     * ----------------------------------------------------------------------------
+     */
     private static int l = 0;
 
     protected LIElement createSuggestionElement(final Tag tag) {
@@ -496,16 +594,12 @@ public class InputTag<T extends Tag> extends Widget {
                         suggestionList.getChild(i).<com.google.gwt.user.client.Element>cast().removeClassName("tags-suggestion-list-suggestion-focus");
                     }
                     listItem.addClassName("tags-suggestion-list-suggestion-focus");
-
                     // 
                     // Handles suggestion from suggestion list
                     // 
                 } else if (event.getTypeInt() == Event.ONCLICK) {
-                    appendTag(tag);
-                    resetInputText();
-                    hideSuggestions();                   
-                    inputText.focus();
-                    
+                    handleNewTag(tag);
+
                 }
             }
         });
@@ -528,9 +622,15 @@ public class InputTag<T extends Tag> extends Widget {
         return null;
     }
 
-    /*----------------------------------------------------------------------------*/
-    /*---- U T I L S  ----*/
-    /*----------------------------------------------------------------------------*/
+    /*
+     * ----------------------------------------------------------------------------
+     */
+    /*
+     * ---- U T I L S ----
+     */
+    /*
+     * ----------------------------------------------------------------------------
+     */
     private static void shiftFocusLeft(Element listItem) {
         Node sib = listItem.getPreviousSibling();
         if (sib != null) {
@@ -572,12 +672,12 @@ public class InputTag<T extends Tag> extends Widget {
     }
 
     /**
-     * Returns <code>true</code> if event.getKeyCode is system key like: Enter,
-     * Backspace, Alt..
-     * <br/>
-     * All non system keycodes has key 0.
+     * Returns
+     * <code>true</code> if event.getKeyCode is system key like: Enter,
+     * Backspace, Alt.. <br/> All non system keycodes has key 0.
+     *
      * @param keyCode
-     * @return 
+     * @return
      */
     private static boolean isSystemKey(int keyCode) {
         return keyCode == KeyCodes.KEY_ALT
@@ -620,7 +720,7 @@ public class InputTag<T extends Tag> extends Widget {
     /**
      * @param mode the mode to set
      */
-    public void setMode(Mode mode) {
+    public final void setMode(Mode mode) {
         this.mode = mode;
         switch (mode) {
             case WRITE:
@@ -636,21 +736,22 @@ public class InputTag<T extends Tag> extends Widget {
     }
 
     /**
-     * Make component only read only. This method has same effect when setting mode
-     * to {@link Mode#READ}.
+     * Make component only read only. This method has same effect when setting
+     * mode to {@link Mode#READ}.
      *
-     * @param value boolean value, when <code>true</code> then component is editable otherwise is not
+     * @param value boolean value, when
+     * <code>true</code> then component is editable otherwise is not
      */
     public void setEditable(boolean value) {
         if (inputText.getParentElement().getParentElement() == null && value) {
             tagList.appendChild(inputText.getParentElement());
-            for (ItemTag<T> itemTag : getTags()) {
+            for (ItemTag<T> itemTag : getInputTags()) {
                 itemTag.listItem.getFirstChildElement().getNextSiblingElement().getStyle().setVisibility(Visibility.VISIBLE);
                 itemTag.listItem.addClassName("input-tag-list-item-deletable");
             }
         } else if (inputText.getParentElement().getParentElement() != null && !value) {
             inputText.getParentElement().removeFromParent();
-            for (ItemTag<T> itemTag : getTags()) {
+            for (ItemTag<T> itemTag : getInputTags()) {
                 itemTag.listItem.getFirstChildElement().getNextSiblingElement().getStyle().setVisibility(Visibility.HIDDEN);
                 itemTag.listItem.removeClassName("input-tag-list-item-deletable");
             }
@@ -659,6 +760,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /**
      * Delegete for getting suggestions for given input
+     *
      * @return the suggestionDelegate
      */
     public SuggestionCallback<T> getSuggestionDelegate() {
@@ -667,6 +769,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /**
      * Delegete for getting suggestions for given input
+     *
      * @param suggestionDelegate the suggestionDelegate to set
      */
     public void setSuggestionDelegate(SuggestionCallback<T> suggestionDelegate) {
@@ -718,8 +821,30 @@ public class InputTag<T extends Tag> extends Widget {
     /**
      * @return the tags
      */
-    public List<ItemTag<T>> getTags() {
+    private List<ItemTag<T>> getInputTags() {
         return tags;
+    }
+
+    public List<T> getTags() {
+        List<T> t = new ArrayList(tags.size());
+        for (ItemTag<T> t1 : tags) {
+            t.add(t1.getTag());
+        }
+        return t;
+    }
+
+    /**
+     * @return the allowDuplicates
+     */
+    public boolean isAllowDuplicates() {
+        return allowDuplicates;
+    }
+
+    /**
+     * @param allowDuplicates the allowDuplicates to set
+     */
+    public void setAllowDuplicates(boolean allowDuplicates) {
+        this.allowDuplicates = allowDuplicates;
     }
 
     /**
@@ -749,11 +874,17 @@ public class InputTag<T extends Tag> extends Widget {
      */
     public enum Mode {
 
-        /** Read only mode, no other tags can be inserted */
+        /**
+         * Read only mode, no other tags can be inserted
+         */
         READ,
-        /** Tags can be only from given set of items provided by {@link ... } */
+        /**
+         * Tags can be only from given set of items provided by {@link ... }
+         */
         SELECT_BOX,
-        /** Free tags */
+        /**
+         * Free tags
+         */
         WRITE;
-    }        
+    }
 }

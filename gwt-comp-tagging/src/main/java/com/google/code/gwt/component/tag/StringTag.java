@@ -12,5 +12,5 @@ public class StringTag extends Tag<String>{
     
     public StringTag(String value, String tag) {
         super(value, tag);
-    }        
+    }  
 }

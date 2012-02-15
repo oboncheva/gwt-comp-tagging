@@ -1,10 +1,7 @@
 package com.google.code.gwt.component.client.example;
 
-import com.google.code.gwt.component.tag.SuggestionCallback;
+import com.google.code.gwt.component.tag.*;
 import com.google.code.gwt.component.tag.SuggestionCallback.Callback;
-import com.google.code.gwt.component.tag.Tag;
-import com.google.code.gwt.component.tag.InputTag;
-import com.google.code.gwt.component.tag.StringTag;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.user.client.ui.RootPanel;
 import java.util.ArrayList;
@@ -28,6 +25,7 @@ public class TaggingEntryPoint implements EntryPoint {
         items.add(new StringTag("Tag 3", "Tag 3"));
 
         InputTag<StringTag> ti1 = new InputTag<StringTag>(items);
+        ti1.setAllowWhiteSpaceInTag(true);
         ti1.setWidth("400px");
         ti1.setSuggestionDelegate(new SuggestionDelegateMock());
 
@@ -39,10 +37,16 @@ public class TaggingEntryPoint implements EntryPoint {
         ti3.setWidth("400px");
         ti3.setSuggestionDelegate(new SuggestionDelegateMock());
         ti3.setMode(InputTag.Mode.SELECT_BOX);
+        
+        SelectBoxInputTag<StringTag> ti4 = new SelectBoxInputTag<StringTag>();
+        ti4.setSelectBoxTags(items);
+        ti4.setWidth("400px");
+                 
 
         RootPanel.get("test").add(ti1);
         RootPanel.get("test").add(ti2);
         RootPanel.get("test").add(ti3);
+        RootPanel.get("test").add(ti4);
 
     }
 

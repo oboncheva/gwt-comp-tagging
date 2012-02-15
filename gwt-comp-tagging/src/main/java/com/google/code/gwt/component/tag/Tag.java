@@ -32,4 +32,26 @@ public class Tag<T> implements Serializable{
     public T getValue() {
         return value;
     }
+    
+    public boolean canBeSuggested(String input){
+        return input.toLowerCase().startsWith(tag);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Tag){
+           Tag t = (Tag)obj; 
+           return t.tag.equalsIgnoreCase(tag);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 97 * hash + (this.tag != null ? this.tag.hashCode() : 0);
+        return hash;
+    }
+    
+    
 }

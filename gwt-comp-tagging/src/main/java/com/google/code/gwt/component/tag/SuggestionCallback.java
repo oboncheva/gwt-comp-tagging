@@ -24,7 +24,7 @@ public interface SuggestionCallback<T extends Tag> {
      * Callback interface for notify {@link InputTag} about new suggestions has
      * been found.
      */
-    public interface Callback{
+    public interface Callback<T>{
         /**
          * ID for synchronization
          * @return 
@@ -37,7 +37,7 @@ public interface SuggestionCallback<T extends Tag> {
          * @param suggestions 
          * @return <code>true</code> when suggested items were used, otherwise synchronization id was not actual.
          */
-        public boolean found(List suggestions);
+        public boolean found(List<T> suggestions);
         
     }   
     
