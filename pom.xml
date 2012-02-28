@@ -1,76 +1,104 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">    
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.google.code</groupId>
-    <artifactId>gwt-comp-tagging-parent</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>gwt-comp-tagging</artifactId>
+    <packaging>jar</packaging>
     <version>0.0.1</version>
-    <name>gwt-com-tagging-parent</name>
-    <url>http://code.google.com/p/gwt-comp-tagging</url>
+    <name>gwt-com-tagging</name>
+          
+    <dependencies>
 
-    <!-- Developers -->
-    <developers>
-        <developer>
-            <id>gressa</id>
-            <name>Pavol Gressa</name>
-            <email>gressa@acemcee.com</email>
-            <organization>ACEMCEE</organization>
-            <organizationUrl>http://acemcee.com</organizationUrl>
-            <roles>
-                <role>Architect</role>
-                <role>Developer</role>
-            </roles>
-            <timezone>+1</timezone>
-        </developer>
-    </developers>
+        <!-- base gwt -->
+        <dependency>
+            <groupId>com.google.gwt</groupId>
+            <artifactId>gwt-servlet</artifactId>
+            <version>2.3.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.gwt</groupId>
+            <artifactId>gwt-user</artifactId>
+            <version>2.3.0</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 
-    <repositories>
-        <repository>
-            <id>ibiblio.org</id>
-            <name>ibiblio Mirror of http://repo1.maven.org/maven2/</name>
-            <url>http://mirrors.ibiblio.org/pub/mirrors/maven2</url>
-        </repository>
-    </repositories>
 
-    <pluginRepositories>
-        <pluginRepository>
-            <id>maven2-repository.dev.java.net</id>
-            <name>Java.net Maven 2 Repository</name>
-            <url>http://download.java.net/maven/2</url>
-        </pluginRepository>
-        <pluginRepository>
-            <id>central</id>
-            <name>Maven Plugin Repository</name>
-            <url>http://repo1.maven.org/maven2</url>
-        </pluginRepository>
-    </pluginRepositories>
-   
-    <properties>
-        <gwt.version>2.3.0</gwt.version>
-    </properties>
-   
-   
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.google.gwt</groupId>
-                <artifactId>gwt-servlet</artifactId>
-                <version>${gwt.version}</version>
-                <scope>runtime</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.google.gwt</groupId>
-                <artifactId>gwt-user</artifactId>
-                <version>${gwt.version}</version>
-                <scope>provided</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+    <build>
+        <finalName>${project.groupId}-${project.artifactId}</finalName>
 
-    <modules>
-        <module>gwt-comp-tagging</module>
-        <module>gwt-comp-tagging-example</module>
-    </modules>
-   
+        <resources>
+            <!-- Resources v SRC/MAIN/JAVA -->            
+            <resource>
+                <includes>
+                    <include>**/*.xml</include>
+                    <include>**/*.properties</include>
+                    <include>**/*.java</include>
+                    <include>**/*.css</include>
+                    <include>**/*.png</include>
+                    <include>**/*.gif</include>
+                </includes>
+                <directory>src/main/java</directory>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>                
+                <version>2.3.2</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>                
+                <version>2.3.2</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>                
+                <version>2.5</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>2.4.1</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>${basedir}/src/test/war</directory>
+                            <includes>
+                                <include>*</include>
+                            </includes>
+                            <followSymlinks>false</followSymlinks>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>gwt-maven-plugin</artifactId>
+                <version>2.3.0</version>
+                <configuration>
+                    <logLevel>DEBUG</logLevel>
+                    <output>${basedir}/src/test/war</output>
+                    <runTarget>InputTagTest/tagging.html</runTarget>
+                    <webXml>${basedir}/src/test/war/WEB-INF/web.xml</webXml>
+                    <hostedWebapp>${basedir}/src/test/war</hostedWebapp>
+                    <noServer>false</noServer>                    
+                </configuration>
+            </plugin>
+        </plugins>
+
+    </build>
 </project>
