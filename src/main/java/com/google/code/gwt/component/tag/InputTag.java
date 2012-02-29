@@ -155,8 +155,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     private void initLayout(List<T> tags) {
         // init main wrapper area
-        component = DOM.createDiv();
-        component.setClassName("input-tag");
+        component = DOM.createDiv();        
 
         /**
          * UL list wrapper
@@ -723,15 +722,18 @@ public class InputTag<T extends Tag> extends Widget {
     public final void setMode(Mode mode) {
         this.mode = mode;
         switch (mode) {
-            case WRITE:
+             case WRITE:
                 setEditable(true);
+                component.setClassName("input-tag input-tag-mode-write");
                 break;
             case SELECT_BOX:
-                setEditable(true);                
+                setEditable(true);
+                component.setClassName("input-tag input-tag-mode-select-box");
                 break;
             case READ:
-                setEditable(false);                
-                break;
+                setEditable(false);
+                component.setClassName("input-tag input-tag-mode-read-only");
+                break;                        
         }
     }
 
