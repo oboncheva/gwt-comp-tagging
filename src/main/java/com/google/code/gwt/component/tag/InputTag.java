@@ -1,11 +1,6 @@
 package com.google.code.gwt.component.tag;
 
-import com.google.gwt.dom.client.Document;
-import com.google.gwt.dom.client.Element;
-import com.google.gwt.dom.client.InputElement;
-import com.google.gwt.dom.client.LIElement;
-import com.google.gwt.dom.client.Node;
-import com.google.gwt.dom.client.SpanElement;
+import com.google.gwt.dom.client.*;
 import com.google.gwt.dom.client.Style.Display;
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.dom.client.Style.Visibility;
@@ -28,14 +23,8 @@ public class InputTag<T extends Tag> extends Widget {
 
     /*
      * ------------------------------
-     */
-    /*
      * -- Component DOM Elements --
-     */
-    /*
      * ------------------------------
-     */
-    /**
      * Main component DIV element
      */
     private Element component;
@@ -58,11 +47,7 @@ public class InputTag<T extends Tag> extends Widget {
     private SpanElement widthSpanTester;
     /*
      * ----------------------------------
-     */
-    /*
      * -- Component Business Objects --
-     */
-    /*
      * ----------------------------------
      */
     /**
@@ -80,11 +65,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /*
      * --------------------------------
-     */
-    /*
      * -- Component Worker Objects --
-     */
-    /*
      * --------------------------------
      */
     private int suggestionSynchroId = 0;
@@ -138,9 +119,29 @@ public class InputTag<T extends Tag> extends Widget {
         DOM.setStyleAttribute(suggestionList.getParentElement().<com.google.gwt.user.client.Element>cast(), "width", value);
     }
 
+    private Element createTagWrapper() {
+        /**
+         * UL list wrapper
+         */
+        Element tagListWrapeer = DOM.createDiv();
+        tagListWrapeer.setClassName("input-tag-list");
+        DOM.setEventListener(tagListWrapeer.<com.google.gwt.user.client.Element>cast(), new EventListener() {
+
+            @Override
+            public void onBrowserEvent(Event event) {
+                
+                
+                inputText.focus();
+                
+            }
+        });
+        DOM.sinkEvents(tagListWrapeer.<com.google.gwt.user.client.Element>cast(), Event.ONCLICK);
+        return tagListWrapeer;
+    }
+
     private void handleNewTag(Tag tag) {
         appendTag(tag);
-        resetInputText();
+        resetInputText();        
         if (Mode.SELECT_BOX.equals(mode)) {
             if (t != null) {
                 t.cancel();
@@ -156,12 +157,7 @@ public class InputTag<T extends Tag> extends Widget {
     private void initLayout(List<T> tags) {
         // init main wrapper area
         component = DOM.createDiv();        
-
-        /**
-         * UL list wrapper
-         */
-        Element tagListWrapeer = DOM.createDiv();
-        tagListWrapeer.setClassName("input-tag-list");
+        Element tagListWrapeer = createTagWrapper();
 
         // init list area
         tagList = Document.get().createULElement();
@@ -230,7 +226,7 @@ public class InputTag<T extends Tag> extends Widget {
      * @param tag representation
      * @return list item
      */
-    protected void appendTag(Tag tag) {
+    public void appendTag(Tag tag) {
         // item
         final Element item = createTagLIElement(new EventListener() {
 
@@ -322,11 +318,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /*
      * ----------------------------------------------------------------------------
-     */
-    /*
      * ---- I N P U T T E X T ----
-     */
-    /*
      * ----------------------------------------------------------------------------
      */
     private void inputTextChanged(boolean force) {
@@ -563,12 +555,8 @@ public class InputTag<T extends Tag> extends Widget {
     }
 
     /*
-     * ----------------------------------------------------------------------------
-     */
-    /*
-     * ---- S U G G E S T I O N S ----
-     */
-    /*
+     * ----------------------------------------------------------------------------     
+     * ---- S U G G E S T I O N S ----     
      * ----------------------------------------------------------------------------
      */
     private static int l = 0;
@@ -623,11 +611,7 @@ public class InputTag<T extends Tag> extends Widget {
 
     /*
      * ----------------------------------------------------------------------------
-     */
-    /*
      * ---- U T I L S ----
-     */
-    /*
      * ----------------------------------------------------------------------------
      */
     private static void shiftFocusLeft(Element listItem) {
@@ -643,16 +627,7 @@ public class InputTag<T extends Tag> extends Widget {
             sib.focus();
         }
     }
-
-    private static boolean hasNodeChildsStyleClass(Node node, String className) {
-        for (int i = 0; i < node.getChildCount(); i++) {
-            if (hasNodeStyleClass(node.getChild(i), className)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+    
     private static boolean hasNodeStyleClass(Node node, String className) {
         String c = DOM.getElementAttribute(node.<com.google.gwt.user.client.Element>cast(), "class");
         if (c != null && c.length() > 0) {
@@ -737,6 +712,20 @@ public class InputTag<T extends Tag> extends Widget {
         }
     }
 
+    
+    /**
+     * Removes all tags
+     */
+    public void clear(){        
+        if(!getInputTags().isEmpty()){
+            
+            for(ItemTag tag : getInputTags()){
+                tag.listItem.removeFromParent();
+            }
+            getInputTags().clear();            
+        }
+    }
+    
     /**
      * Make component only read only. This method has same effect when setting
      * mode to {@link Mode#READ}.

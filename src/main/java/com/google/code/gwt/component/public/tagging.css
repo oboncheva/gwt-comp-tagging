@@ -2,6 +2,12 @@
 
 }
 
+.input-tag-mode-write{}
+
+.input-tag-mode-select-box{}
+
+.input-tag-mode-read-only{}
+
 .input-tag-list{
     font-family:Arial,Helvetica;
     font-size:12px;

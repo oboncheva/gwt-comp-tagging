@@ -5,7 +5,7 @@
     <groupId>com.google.code</groupId>
     <artifactId>gwt-comp-tagging</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.1</version>
+    <version>0.0.3</version>
     <name>gwt-com-tagging</name>
           
     <dependencies>
@@ -25,10 +25,9 @@
         </dependency>
     </dependencies>
 
+   
 
-    <build>
-        <finalName>${project.groupId}-${project.artifactId}</finalName>
-
+    <build>        
         <resources>
             <!-- Resources v SRC/MAIN/JAVA -->            
             <resource>
